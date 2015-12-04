@@ -1,0 +1,92 @@
+DOS STUB
+0x00000000 - 0x00000079 (80 bytes)
+    +0x0000003C		Offset to PE Header
+
+PE Signature
+0x00000080 - 0x00000083 (4 bytes)
+    +0x00000000
+	0x50 0x45 0x00 0x00
+    	P    E    .    .
+
+
+0x00000084 - 0x00000097			COFF Header
+
+    +0x00000000				Machine
+    	0x014C			
+    +0x00000002				Number of sections
+    +0x00000004				Time/Date Stamp
+    +0x00000008				Offset to COFF Symbol Table
+    +0x0000000C				Number of entries in COFF Symbol Table
+    +0x00000010				Size of optional header
+    +0x00000012				Characteristics
+
+
+0x00000098 - 0x00000177			PE Header
+
+    0x00000098 - 0x000000B3		Standard Fields
+    
+        +0x00000000			Magic (PE32)
+    	    0x010B
+	+0x00000002			Major Linker Version
+	+0x00000003			Minor Linker Version
+	+0x00000004			Size of code (text) section(s)
+	+0x00000008			Size of initialized data section(s)
+	+0x0000000C			Size of uninitialized data (BSS) section(s)
+	+0x00000010			Address of entry point (relative to image base)
+	+0x00000014			Address of code section (relative to image base)
+	+0x00000018			Address of data section (relative to image base)
+	
+    0x000000B4 - 0x000000F7		Windows Only Headers
+    
+    	+0x00000000			Image Base
+	+0x00000004			Section Alignment Size
+	+0x00000008			File Alignment Size
+	+0x0000000C			Major Operating System
+	+0x0000000E			Minor Operating System
+	+0x00000010			Major Image Version
+	+0x00000012			Minor Image Version
+	+0x00000014			Major Subsystem Version
+	+0x00000016			Minor Subsystem Version
+	+0x00000018			Reserved (DD)
+	+0x0000001C			Image Size
+	+0x00000020			Headers Size
+	+0x00000024			Checksum
+	+0x00000028			Subsystem
+	+0x0000002A			DLL Characteristics
+	+0x0000002C			Stack Reserve
+	+0x00000030			Stack Commit
+	+0x00000034			Heap Reserve
+	+0x00000038			Heap Commit
+	+0x0000003C			Loader Flags (obsolete)
+	+0x00000040			Number of entries in remaining header
+	
+    0x000000F8 - 0x00000177		Data Directories
+    
+	+0x00000000			Export Table			address relative to image base and size
+	+0x00000008			Import Table 			address relative to image base and size
+	+0x00000010			Resource Table 			address relative to image base and size
+	+0x00000018			Exception Table 		address relative to image base and size
+	+0x00000020			Attribute Certificate Table 	address relative to image base and size
+	+0x00000028			Base Relocation Table 		address relative to image base and size
+	+0x00000030			Debug Table 			address relative to image base and size
+	+0x00000038			Architecture Table 		address relative to image base and size
+	+0x00000040			Global Ptr 			address relative to image base and size
+	+0x00000048			TLS Table    			address relative to image base and size
+	+0x00000050			Load Config Table 		address relative to image base and size
+	+0x00000058			Bound Import Table 		address relative to image base and size
+	+0x00000060			Import Address Table 		address relative to image base and size
+	+0x00000068			Delay Import Descriptor 	address relative to image base and size
+	+0x00000070			COM+ Runtime header 		address relative to image base and size
+	+0x00000078			Reserved
+
+    0x00000178 - 0x28*NumSections 	Section Headers
+    	+0x00000028 * N			Name
+	+0x00000028 * N + 0x08		Virtual Size
+	+0x00000028 * N + 0x0C		Virtual Address			address relative to image base
+	+0x00000028 * N + 0x10		Size of raw data 		address in file
+	+0x00000028 * N + 0x14		Pointer to raw data 		address in file
+	+0x00000028 * N + 0x18		Pointer to relocation data
+	+0x00000028 * N + 0x1C		Pointer to line numbers
+	+0x00000028 * N + 0x1E		Number of relocations
+	+0x00000028 * N + 0x20		Number of line numbers
+	+0x00000028 * N + 0x24		Characteristics

@@ -1,0 +1,195 @@
+#include <windows.h>
+#include <tchar.h>
+#include <stdio.h>
+#include <iostream>
+#include "ntundoc.h"
+
+using namespace std;
+
+// Forego byte alignment
+#pragma pack(push, 1)
+
+struct coff_header {
+    unsigned short machine;
+    unsigned short sections;
+    unsigned int timestamp;
+    unsigned int symboltable;
+    unsigned int symbols;
+    unsigned short size_of_opt_header;
+    unsigned short characteristics;
+};
+
+struct optional_header {
+    unsigned short magic;
+    char linker_version_major;
+    char linker_version_minor;
+    unsigned int code_size;
+    unsigned int idata_size;
+    unsigned int udata_size;
+    unsigned int entry_point;
+    unsigned int code_base;
+};
+
+typedef struct _SELFDEL {
+  HANDLE  hParent;                // parent process handle
+  void*   fnWaitForSingleObject;
+  void*   fnCloseHandle;
+  void*   fnDeleteFile;
+  void*   fnSleep;
+  void*   fnExitProcess;
+  void*   fnRemoveDirectory;
+  void*   fnGetLastError;
+  void*   fnLoadLibrary;
+  void*   fnGetProcAddress;
+  BOOL    fRemDir;
+  TCHAR   szFileName[MAX_PATH];   // file to delete
+} SELFDEL;
+
+#pragma pack(pop)
+
+DWORD GetProcessEntryPointAddress( HANDLE hProcess, HANDLE hThread )
+{
+    CONTEXT             context;
+    LDT_ENTRY           entry;
+    TEB                 teb;
+    PEB                 peb;
+    DWORD               read;
+    DWORD               dwFSBase;
+    DWORD               dwImageBase, dwOffset;
+    DWORD               dwOptHeaderOffset;
+    optional_header     opt;
+
+    //
+    // get the current thread context
+    //
+    context.ContextFlags = CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS;
+    GetThreadContext( hThread, &context );
+
+    //
+    // use the segment register value to get a pointer to
+    // the TEB
+    //
+    GetThreadSelectorEntry( hThread, context.SegFs, &entry );
+    dwFSBase = ( entry.HighWord.Bits.BaseHi << 24 ) |
+                     ( entry.HighWord.Bits.BaseMid << 16 ) |
+                     ( entry.BaseLow );
+
+    //
+    // read the teb
+    //
+    ReadProcessMemory( hProcess, (LPCVOID)dwFSBase,
+                       &teb, sizeof( TEB ), &read );
+
+    //
+    // read the peb from the location pointed at by the teb
+    //
+    ReadProcessMemory( hProcess, (LPCVOID)teb.Peb,
+                       &peb, sizeof( PEB ), &read );
+
+    //
+    // figure out where the entry point is located;
+    //
+    dwImageBase = (DWORD)peb.ImageBaseAddress;
+    ReadProcessMemory( hProcess, (LPCVOID)( dwImageBase + 0x3c ),
+                       &dwOffset, sizeof( DWORD ), &read );
+
+    dwOptHeaderOffset = ( dwImageBase + dwOffset + 4 +
+                            sizeof( coff_header ) );
+    ReadProcessMemory( hProcess, (LPCVOID)dwOptHeaderOffset,
+                       &opt, sizeof( optional_header ), &read );
+
+    return ( dwImageBase + opt.entry_point );
+}
+
+int main(int argc, char *argv[]) {
+  SELFDEL* wtf = (SELFDEL*)0xDEADBEEF;
+  wtf += 1;
+  STARTUPINFO             si = { sizeof(si) };
+  PROCESS_INFORMATION     pi;
+  SELFDEL                 selfdel;
+  DWORD                   data;
+  DWORD			  oldProt;
+  TCHAR                   szExe[MAX_PATH] = _T( "explorer.exe" );
+  DWORD                   process_entry;
+  
+  BYTE shellcode[] = {
+    '\x55', '\x89', '\xE5', '\x83', '\xEC', '\x38', '\xC7', '\x45', '\xF4',
+    '\xFF', '\xFF', '\xFF', '\xFF',
+    '\x8B', '\x45', '\xF4', '\x8B', '\x40', '\x04', '\x89', '\x45', '\xF0',
+    '\x8B', '\x45', '\xF4', '\x8B', '\x40', '\x08', '\x89', '\x45', '\xEC',
+    '\x8B', '\x45', '\xF4', '\x8B', '\x40', '\x0C', '\x89', '\x45', '\xE8',
+    '\x8B', '\x45', '\xF4', '\x8B', '\x40', '\x10', '\x89', '\x45', '\xE4',
+    '\x8B', '\x45', '\xF4', '\x8B', '\x40', '\x14', '\x89', '\x45', '\xE0',
+    '\x8B', '\x45', '\xF4', '\x8B', '\x00', '\xC7', '\x44', '\x24', '\x04',
+    '\xFF', '\xFF', '\xFF', '\xFF', '\x89', '\x04', '\x24', '\x8B', '\x45',
+    '\xF0', '\xFF', '\xD0', '\x8B', '\x45', '\xF4', '\x8B', '\x00', '\x89',
+    '\x04', '\x24', '\x8B', '\x45', '\xEC', '\xFF', '\xD0', '\x8B', '\x45',
+    '\xF4', '\x83', '\xC0', '\x2C', '\x89', '\x04', '\x24', '\x8B', '\x45',
+    '\xE8', '\xFF', '\xD0', '\xC7', '\x04', '\x24', '\x00', '\x00', '\x00',
+    '\x00', '\x8B', '\x45', '\xE0', '\xFF', '\xD0', '\xC9', '\xC3'
+  };
+
+  BYTE* p_shellcode = &shellcode[0];
+  SELFDEL* p_selfdel = &selfdel;
+  int i_shellcode = reinterpret_cast<int>(p_shellcode);
+  int i_selfdel = reinterpret_cast<int>(p_selfdel);
+
+  selfdel.fnWaitForSingleObject     = (void*)WaitForSingleObject;
+  selfdel.fnCloseHandle             = (void*)CloseHandle;
+  selfdel.fnDeleteFile              = (void*)DeleteFile;
+  selfdel.fnSleep                   = (void*)Sleep;
+  selfdel.fnExitProcess             = (void*)ExitProcess;
+  selfdel.fnRemoveDirectory         = (void*)RemoveDirectory;
+  selfdel.fnGetLastError            = (void*)GetLastError;
+  selfdel.fnLoadLibrary             = (void*)LoadLibrary;
+  selfdel.fnGetProcAddress          = (void*)GetProcAddress;
+
+  /**
+  shellcode[12]  = (BYTE)(i_selfdel >> 24);
+  shellcode[11] = (BYTE)((i_selfdel >> 16) & 0xFF);
+  shellcode[10] = (BYTE)((i_selfdel >> 8) & 0xFF);
+  shellcode[9] = (BYTE)(i_selfdel & 0xFF);
+  */
+
+  if(CreateProcess(0, szExe, 0, 0, 0, CREATE_SUSPENDED|IDLE_PRIORITY_CLASS, 0, 0, &si, &pi)) {
+    //
+    // Give remote process a copy of our own process handle
+    //
+    DuplicateHandle(GetCurrentProcess(), GetCurrentProcess(), 
+		    pi.hProcess, &selfdel.hParent, 0, FALSE, 0);
+    
+    GetModuleFileName(0, selfdel.szFileName, MAX_PATH);
+    
+    //
+    // get the process's entry point address
+    //
+    process_entry = GetProcessEntryPointAddress( pi.hProcess, pi.hThread );
+    data = process_entry + sizeof( shellcode );
+
+    shellcode[12]  = (BYTE)(data >> 24);
+    shellcode[11] = (BYTE)((data >> 16) & 0xFF);
+    shellcode[10] = (BYTE)((data >> 8) & 0xFF);
+    shellcode[9] = (BYTE)(data & 0xFF);
+
+    VirtualProtectEx( pi.hProcess,
+		      (PVOID)process_entry,
+		      sizeof( selfdel ) + sizeof( shellcode ),
+		      PAGE_EXECUTE_READWRITE,
+		      &oldProt );
+    WriteProcessMemory( pi.hProcess,
+			(PVOID)process_entry,
+			shellcode,
+			sizeof( shellcode ), 0);
+    WriteProcessMemory( pi.hProcess,
+			(PVOID)data,
+			&selfdel,
+			sizeof( selfdel ), 0);
+    
+    //
+    // Let the process continue
+    //
+    ResumeThread(pi.hThread);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+  }
+}

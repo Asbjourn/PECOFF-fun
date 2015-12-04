@@ -1,6 +1,6 @@
 # PECOFF-fun
-Messing around with Windows PECOFFs
+This repository will be dedicated to experiments messing with Windows PECOFFs, specifically malformed headers and injecting shellcode.  The primary function of all produced exe's will be self-deletion.  The reason behind this is that the tangible proof of its success is its own removal, providing both an enjoyable sense of irony and lending an impetus to streamline and otherwise automate the creation of these exe's.
 
 ## runshell:
 
-Simple pe header shift with some weakly armored shellcode for some self-harming fun (it deletes itself).  Process injection methodology courtesy of Rajasekharan Vengalil at Nerdworks Blogorama.
+The first in the line.  runshell contains a simple pe header shift with the shellcode located immediately after the DOS header.  The process injection methodology comes courtesy of Rajasekharan Vengalil at Nerdworks Blogorama.
